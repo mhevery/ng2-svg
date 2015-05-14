@@ -3,10 +3,29 @@ import {
     Parent,
     Directive,
     Component,
+    NgFor,
     Query, QueryList,
     View, ViewRef, ViewContainerRef, ProtoViewRef,
     bootstrap, forwardRef, ElementRef,
     onAllChangesDone} from 'angular2/angular2';
+
+
+
+@Directive({
+  selector: '[view-dst]',
+  properties: { 'viewDst': 'viewDst' }
+})
+class ViewDst {
+  constructor(public viewContainer: ViewContainerRef) {
+    console.log('ViewDst');
+  }
+
+  set viewDst(templateRef:SrcAxisTemplate) {
+    console.log("ViewDst.templateRef", templateRef);
+    var viewRef:ViewRef = this.viewContainer.create(templateRef.protoView, -1, templateRef.elementRef);
+    // TODO: set locals
+  }
+}
 
 
 
@@ -19,19 +38,18 @@ import {
   template: `
   <svg>
     <rect *src-axis-template="var width=width; var y=y;"
-          [attr.width]="width" height="5"
-          x="0" [attr.y]="y + 5"
+          width="100%" height="5" x="0" y="0"
           style="fill:rgb(255,0,9);stroke-width:3;stroke:rgb(0,0,0)" />
   </svg>`
 })
 class Axis {
-  srcAxisTemplate: SrcAxisTemplate;
+  templateRef: SrcAxisTemplate;
   constructor() {
     console.log('Axis');
   }
 
   addTemplate(srcAxisTemplate: SrcAxisTemplate) {
-    this.srcAxisTemplate = srcAxisTemplate;
+    this.templateRef = srcAxisTemplate;
   }
 }
 
@@ -60,48 +78,24 @@ class SrcAxisTemplate {
   <svg width="100%" height="100%">
     <rect [attr.width]="width" [attr.height]="height"
           style="fill:rgb(0,0,255);stroke-width:3;stroke:rgb(0,0,0)" />
-    <g [dst-axes]="axes"></g>
+    <svg [attr.width]="width" height="10" x="0" [attr.y]="1*height + 5">
+      <g *ng-for="var axis of axes; var i=$index" [attr.y]="i*10">
+        <template [view-dst]="axis.templateRef"></template>
+      </g>
+    </svg>
   </svg>
-  <!-- not necessary, but usefull for debugging -->
+  <!-- not necessary, but useful for debugging -->
   <content></content>`,
-  directives: [forwardRef(() => DstAxis)]
+  directives: [ViewDst, NgFor]
 })
 class Graph {
   width: number;
   height: number;
-  dstAxis: DstAxis;
   axes: QueryList;
 
   constructor(@Query(Axis) axes: QueryList) {
     console.log('Graph');
     this.axes = axes;
-  }
-}
-
-
-
-
-@Directive({
-  selector: '[dst-axes]',
-  properties: { 'dstAxesChanges': 'dstAxes | iterableDiff' }
-})
-class DstAxis {
-  dstAxes: Array<Axis>;
-  protoView: ProtoViewRef;
-  // constructor(@Inject(() => Graph) graph, @Inject(ViewContainerRef) viewContainer) {
-  constructor(public graph: Graph, public viewContainer: ViewContainerRef) {
-    console.log('DstAaxis');
-    this.graph.dstAxis = this;
-  }
-
-  set dstAxesChanges(changes) {
-    console.log("DstAxis.dstAxisChanges", changes);
-    changes.forEachAddedItem(changeRecord => {
-      var axis: Axis = changeRecord.item;
-      var viewRef:ViewRef = this.viewContainer.create(axis.srcAxisTemplate.protoView, -1, axis.srcAxisTemplate.elementRef);
-      viewRef.setLocal('width', 1*this.graph.width);
-      viewRef.setLocal('y', 1*this.graph.height);
-    });
   }
 }
 
